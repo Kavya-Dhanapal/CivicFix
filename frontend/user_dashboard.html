@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏙️</text></svg>">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Dashboard — CivicFix</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <div class="logo-icon">🏙️</div>
+    <span>Civic<em>Fix</em></span>
+  </a>
+  <div class="nav-links">
+    <span id="navUser" style="color:var(--text-muted);font-size:.88rem;"></span>
+    <a href="complaint_form.html" class="btn btn-primary btn-sm">+ Report Issue</a>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<!-- Layout -->
+<div class="dash-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <span class="sidebar-label">Navigation</span>
+    <a href="user_dashboard.html" class="active"><span class="icon">🏠</span> My Complaints</a>
+    <a href="complaint_form.html"><span class="icon">➕</span> New Complaint</a>
+    <span class="sidebar-label">Filter Status</span>
+    <a href="#" onclick="filterComplaints('')"   id="f-all"><span class="icon">📋</span> All</a>
+    <a href="#" onclick="filterComplaints('Submitted')"  id="f-sub"><span class="icon">🔵</span> Submitted</a>
+    <a href="#" onclick="filterComplaints('In Progress')" id="f-prog"><span class="icon">🟡</span> In Progress</a>
+    <a href="#" onclick="filterComplaints('Resolved')"   id="f-res"><span class="icon">🟢</span> Resolved</a>
+  </aside>
+
+  <!-- Main -->
+  <main class="dash-main">
+    <div class="dash-header">
+      <h1 id="dashTitle">My Complaints</h1>
+      <p id="dashSub">Track the status of your submitted issues.</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card accent-amber">
+        <span class="stat-value" id="s-total">—</span>
+        <span class="stat-label">Total</span>
+      </div>
+      <div class="stat-card accent-blue">
+        <span class="stat-value" id="s-sub">—</span>
+        <span class="stat-label">Submitted</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="s-prog">—</span>
+        <span class="stat-label">In Progress</span>
+      </div>
+      <div class="stat-card accent-green">
+        <span class="stat-value" id="s-res">—</span>
+        <span class="stat-label">Resolved</span>
+      </div>
+    </div>
+
+    <!-- Complaints list -->
+    <div id="listArea"></div>
+  </main>
+</div>
+
+<script>
+let currentFilter = '';
+
+// ── Auth guard ──
+fetch('/me', { credentials: 'include' })
+  .then(r => r.json())
+  .then(u => {
+    if (!u.id) { window.location.href = 'login.html'; return; }
+    if (u.role === 'admin') { window.location.href = 'admin_dashboard.html'; return; }
+    document.getElementById('navUser').textContent = `Hi, ${u.name} 👋`;
+    loadStats();
+    loadComplaints('');
+  })
+  .catch(() => { window.location.href = 'login.html'; });
+
+// ── Stats ──
+async function loadStats() {
+  const res = await fetch('/stats', { credentials: 'include' });
+  const d   = await res.json();
+  document.getElementById('s-total').textContent = d.total       || 0;
+  document.getElementById('s-sub').textContent   = d.submitted   || 0;
+  document.getElementById('s-prog').textContent  = d.in_progress || 0;
+  document.getElementById('s-res').textContent   = d.resolved    || 0;
+}
+
+// ── Complaints ──
+async function loadComplaints(status) {
+  const area = document.getElementById('listArea');
+  area.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-muted);"><span class="spinner"></span></div>';
+
+  const url = `/get-complaints${status ? '?status=' + encodeURIComponent(status) : ''}`;
+  const res = await fetch(url, { credentials: 'include' });
+  const d   = await res.json();
+
+  if (!d.complaints || d.complaints.length === 0) {
+    area.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>No complaints found</h3>
+        <p>You haven't submitted any${status ? ' ' + status.toLowerCase() : ''} complaints yet.</p>
+        <a href="complaint_form.html" class="btn btn-primary" style="margin-top:1rem">+ Report an Issue</a>
+      </div>`;
+    return;
+  }
+
+  area.innerHTML = `<div class="complaint-cards">${d.complaints.map(cardHTML).join('')}</div>`;
+}
+
+function cardHTML(c) {
+  const statusClass = { Submitted: 'submitted', 'In Progress': 'inprogress', Resolved: 'resolved' }[c.status] || 'submitted';
+  const catEmoji    = { Pothole:'🕳️', Garbage:'🗑️', 'Water Leakage':'💧', 'Street Light':'💡', Sewage:'🚿', 'Road Damage':'🛣️', 'Noise Pollution':'🔊', Other:'❓' }[c.category] || '📌';
+  const imgHtml     = c.image ? `<img src="/uploads/${c.image}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--civic-border);" loading="lazy">` : '';
+
+  return `
+    <div class="complaint-card">
+      <div>
+        <div class="cc-title">${catEmoji} ${escHtml(c.title)}</div>
+        <div class="cc-meta">
+          <span>📁 ${c.category}</span>
+          <span>📍 ${escHtml(c.location)}</span>
+          <span>🕒 ${formatDate(c.created_at)}</span>
+        </div>
+        <div class="cc-desc">${escHtml(c.description).slice(0, 140)}${c.description.length > 140 ? '…' : ''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.75rem;">
+        <span class="badge badge-${statusClass}">${c.status}</span>
+        ${imgHtml}
+        <span style="font-size:.75rem;color:var(--text-dim);">#${c.id}</span>
+      </div>
+    </div>`;
+}
+
+function filterComplaints(status) {
+  currentFilter = status;
+  loadComplaints(status);
+  // Update sidebar highlight
+  ['all','sub','prog','res'].forEach(k => document.getElementById('f-'+k)?.classList.remove('active'));
+  const map = { '': 'all', Submitted: 'sub', 'In Progress': 'prog', Resolved: 'res' };
+  document.getElementById('f-' + (map[status] || 'all'))?.classList.add('active');
+  return false;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDate(s) {
+  if (!s) return '';
+  return new Date(s).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+}
+
+async function logout() {
+  await fetch('/logout', { method: 'POST', credentials: 'include' });
+  window.location.href = 'login.html';
+}
+</script>
+</body>
+</html>
