@@ -28,14 +28,15 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max
 # ─────────────────────────────────────────────
 # MySQL Database Connection
 # ─────────────────────────────────────────────
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'rathikavi',   # <-- CHANGE THIS to your MySQL password
-    'database': 'civicfix',
-    'port': 3306
-}
+import os
 
+DB_CONFIG = {
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'user': os.environ.get('DB_USER', 'root'),
+    'password': os.environ.get('DB_PASSWORD', 'rathikavi'),
+    'database': os.environ.get('DB_NAME', 'civicfix'),
+    'port': int(os.environ.get('DB_PORT', 3306))
+}
 def get_db():
     """Create and return a MySQL database connection."""
     conn = mysql.connector.connect(**DB_CONFIG)
