@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+
+  # ── MySQL Database Container ──
+  db:
+    image: mysql:8.0
+    container_name: civicfix_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: civicfix123
+      MYSQL_DATABASE: civicfix
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql      # saves DB data permanently
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql  # auto-runs schema
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Flask App Container ──
+  app:
+    build: .
+    container_name: civicfix_app
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./uploads:/app/uploads         # saves uploaded images permanently
+    environment:
+      - FLASK_ENV=development
+    depends_on:
+      db:
+        condition: service_healthy     # waits for MySQL to be ready
+    
+# ── Persistent storage for MySQL data ──
+volumes:
+  mysql_data:
