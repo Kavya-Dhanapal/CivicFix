@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏙️</text></svg>">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register — CivicFix</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-page">
+
+<div class="auth-box">
+  <a href="index.html" class="auth-logo">
+    <div class="logo-icon">🏙️</div>
+    <span>Civic<em>Fix</em></span>
+  </a>
+
+  <h1 class="auth-title">Create account</h1>
+  <p class="auth-sub">Join CivicFix and start reporting city issues.</p>
+
+  <div id="alertBox"></div>
+
+  <div class="form-group">
+    <label>Full Name</label>
+    <input type="text" id="name" placeholder="John Doe" autocomplete="name">
+  </div>
+  <div class="form-group">
+    <label>Email Address</label>
+    <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+  </div>
+  <div class="form-group">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Min 6 characters" autocomplete="new-password">
+  </div>
+  <div class="form-group">
+    <label>Account Type</label>
+    <select id="role">
+      <option value="user">👤 Citizen (report & track issues)</option>
+      <option value="admin">🛡️ Admin (manage all complaints)</option>
+    </select>
+  </div>
+
+  <button class="btn btn-primary btn-full" id="regBtn" onclick="doRegister()">
+    Create Account
+  </button>
+
+  <div class="auth-footer">
+    Already have an account? <a href="login.html">Sign in</a>
+  </div>
+</div>
+
+<script>
+function showAlert(msg, type='error') {
+  const icons = { error: '⚠️', success: '✅', info: 'ℹ️' };
+  document.getElementById('alertBox').innerHTML =
+    `<div class="alert alert-${type}">${icons[type]} ${msg}</div>`;
+}
+
+async function doRegister() {
+  const name     = document.getElementById('name').value.trim();
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const role     = document.getElementById('role').value;
+  const btn      = document.getElementById('regBtn');
+
+  if (!name || !email || !password) { showAlert('All fields are required.'); return; }
+  if (password.length < 6) { showAlert('Password must be at least 6 characters.'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Creating account…';
+
+  try {
+    const res  = await fetch('/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ name, email, password, role })
+    });
+    const data = await res.json();
+
+    if (!res.ok) { showAlert(data.error || 'Registration failed.'); return; }
+
+    showAlert('Account created! Redirecting to login…', 'success');
+    setTimeout(() => { window.location.href = 'login.html'; }, 1200);
+  } catch {
+    showAlert('Network error. Is the Flask server running?');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Create Account';
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+</script>
+</body>
+</html>

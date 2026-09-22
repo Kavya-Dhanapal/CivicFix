@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏙️</text></svg>">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report an Issue — CivicFix</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .form-page {
+    max-width: 680px;
+    margin: 3rem auto;
+    padding: 0 1.5rem;
+  }
+  .form-page-header { margin-bottom: 2rem; }
+  .form-page-header h1 { font-size: 1.8rem; font-weight: 800; }
+  .form-page-header p { color: var(--text-muted); margin-top: 4px; }
+  .preview-img {
+    max-height: 200px;
+    border-radius: var(--radius);
+    margin-top: .75rem;
+    display: none;
+    object-fit: cover;
+    border: 1px solid var(--civic-border);
+  }
+  #charCount { font-size:.75rem; color: var(--text-dim); text-align: right; }
+</style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <div class="logo-icon">🏙️</div>
+    <span>Civic<em>Fix</em></span>
+  </a>
+  <div class="nav-links">
+    <a href="user_dashboard.html">← My Dashboard</a>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="form-page">
+  <div class="form-page-header">
+    <h1 style="font-family: 'Roboto', sans-serif; font-size: 2.5rem; color: #d290be;">🚨 Report a City Issue</h1>
+    <p>Fill in the details below so our team can fix it fast.</p>
+  </div>
+
+  <div class="card">
+    <div id="alertBox"></div>
+
+    <div class="form-group">
+      <label>Issue Title *</label>
+      <input type="text" id="title" placeholder="e.g. Large pothole on MG Road" maxlength="200">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div class="form-group">
+        <label>Category *</label>
+        <select id="category">
+          <option value="">— Select category —</option>
+          <option>Pothole</option>
+          <option>Garbage</option>
+          <option>Water Leakage</option>
+          <option>Street Light</option>
+          <option>Sewage</option>
+          <option>Road Damage</option>
+          <option>Noise Pollution</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Location *</label>
+        <input type="text" id="location" placeholder="e.g. MG Road, Near Bus Stop 12">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Description *</label>
+      <textarea id="description" rows="5"
+        placeholder="Describe the issue in detail — size, severity, how long it's been there…"
+        maxlength="1000" oninput="updateCount(this)"></textarea>
+      <div id="charCount">0 / 1000</div>
+    </div>
+
+    <div class="form-group">
+      <label>Photo (optional, max 5 MB)</label>
+      <label class="file-drop" id="dropArea">
+        <input type="file" id="imageInput" accept="image/*" onchange="previewImg(event)">
+        <span id="dropText">📷 Click or drag & drop an image here</span>
+      </label>
+      <img id="imgPreview" class="preview-img" alt="Preview">
+    </div>
+
+    <div style="display:flex;gap:1rem;margin-top:.5rem;">
+      <button class="btn btn-primary" id="submitBtn" onclick="submitComplaint()" style="flex:1">
+        Submit Complaint
+      </button>
+      <a href="user_dashboard.html" class="btn btn-secondary">Cancel</a>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Auth guard ──
+fetch('/me', { credentials: 'include' })
+  .then(r => r.json())
+  .then(u => { if (!u.id) window.location.href = 'login.html'; })
+  .catch(() => { window.location.href = 'login.html'; });
+
+function updateCount(el) {
+  document.getElementById('charCount').textContent = `${el.value.length} / 1000`;
+}
+
+function previewImg(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const preview = document.getElementById('imgPreview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  document.getElementById('dropText').textContent = `✅ ${file.name}`;
+}
+
+// Drag & drop styling
+const drop = document.getElementById('dropArea');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  drop.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    document.getElementById('imageInput').files = e.dataTransfer.files;
+    previewImg({ target: { files: [file] } });
+  }
+});
+
+function showAlert(msg, type='error') {
+  const icons = { error: '⚠️', success: '✅', info: 'ℹ️' };
+  document.getElementById('alertBox').innerHTML =
+    `<div class="alert alert-${type}">${icons[type]} ${msg}</div>`;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function submitComplaint() {
+  const title       = document.getElementById('title').value.trim();
+  const category    = document.getElementById('category').value;
+  const location    = document.getElementById('location').value.trim();
+  const description = document.getElementById('description').value.trim();
+  const imageFile   = document.getElementById('imageInput').files[0];
+  const btn         = document.getElementById('submitBtn');
+
+  if (!title || !category || !location || !description) {
+    showAlert('Please fill in all required fields.'); return;
+  }
+
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('category', category);
+  fd.append('location', location);
+  fd.append('description', description);
+  if (imageFile) fd.append('image', imageFile);
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Submitting…';
+
+  try {
+    const res  = await fetch('/add-complaint', {
+      method: 'POST', credentials: 'include', body: fd
+    });
+    const data = await res.json();
+
+    if (!res.ok) { showAlert(data.error || 'Submission failed.'); return; }
+
+    showAlert('Complaint submitted successfully! Redirecting…', 'success');
+    setTimeout(() => { window.location.href = 'user_dashboard.html'; }, 1500);
+  } catch {
+    showAlert('Network error. Is the Flask server running?');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Submit Complaint';
+  }
+}
+
+async function logout() {
+  await fetch('/logout', { method: 'POST', credentials: 'include' });
+  window.location.href = 'login.html';
+}
+</script>
+</body>
+</html>
