@@ -36,12 +36,20 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max
 #     'database': 'civicfix',
 #     'port': 3306
 # }
+# DB_CONFIG = {
+#     'host': os.environ.get('MYSQL_HOST', 'localhost'),
+#     'user': os.environ.get('MYSQL_USER', 'root'),
+#     'password': os.environ.get('MYSQL_PASSWORD', ''),
+#     'database': os.environ.get('MYSQL_DATABASE', 'civicfix'),
+#     'port': int(os.environ.get('MYSQL_PORT', 3306))
+# }
 DB_CONFIG = {
     'host': os.environ.get('MYSQL_HOST', 'localhost'),
     'user': os.environ.get('MYSQL_USER', 'root'),
     'password': os.environ.get('MYSQL_PASSWORD', ''),
     'database': os.environ.get('MYSQL_DATABASE', 'civicfix'),
-    'port': int(os.environ.get('MYSQL_PORT', 3306))
+    'port': int(os.environ.get('MYSQL_PORT', 3306)),
+    'ssl_disabled': os.environ.get('MYSQL_SSL_DISABLED', 'true').lower() == 'true'
 }
 # DB_CONFIG = {
 #     'host'    : 'db',           # ← 'db' is the docker-compose service name
